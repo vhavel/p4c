@@ -1,0 +1,6 @@
+issue2354-2.p4(27): [--Werror=type-error] error: val: controls cannot have parameters with type int
+control c1(int val) {
+               ^^^
+issue2354-2.p4(27)
+control c1(int val) {
+           ^^^
