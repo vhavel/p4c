@@ -311,6 +311,8 @@ set (IR_GENERATED_SRCS
 set (IR_GENERATOR_DIRECTORY ${P4C_BINARY_DIR}/tools/ir-generator)
 set (IR_GENERATOR ${IR_GENERATOR_DIRECTORY}/irgenerator)
 
+add_subdirectory(absl)
+include_directories(absl)
 # the order of adding subdirectories matters because of target dependencies
 add_subdirectory (tools/driver)
 add_subdirectory (lib)

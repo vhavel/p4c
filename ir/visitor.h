@@ -18,6 +18,7 @@ limitations under the License.
 #define _IR_VISITOR_H_
 
 #include <stdexcept>
+#include <absl/container/flat_hash_map.h>
 #include <unordered_map>
 #include "lib/cstring.h"
 #include "ir/ir.h"
@@ -313,7 +314,7 @@ class Modifier : public virtual Visitor {
 
 class Inspector : public virtual Visitor {
     struct info_t { bool done, visitOnce; };
-    typedef std::unordered_map<const IR::Node *, info_t>       visited_t;
+    typedef absl::flat_hash_map<const IR::Node *, info_t>       visited_t;
     std::shared_ptr<visited_t> visited;
     bool check_clone(const Visitor *) override;
  public:

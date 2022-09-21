@@ -9,3 +9,6 @@
 	path = backends/ebpf/runtime/contrib/libbpf
 	url = https://github.com/libbpf/libbpf
 	ignore = dirty
+[submodule "absl"]
+	path = absl
+	url = git@github.com:abseil/abseil-cpp.git

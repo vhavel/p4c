@@ -35,7 +35,7 @@ class Visitor::ChangeTracker {
         bool            visitOnce;
         const IR::Node  *result;
     };
-    typedef std::unordered_map<const IR::Node *, visit_info_t>  visited_t;
+    typedef absl::flat_hash_map<const IR::Node *, visit_info_t>  visited_t;
     visited_t           visited;
 
  public:
@@ -106,11 +106,12 @@ class Visitor::ChangeTracker {
     /** Forget nodes that have already been visited, allowing them to be visited
      * again. */
     void revisit_visited() {
-        for (auto it = visited.begin(); it != visited.end();) {
+        for (auto it = visited.begin(); it != visited.end(); ++it) {
             if (!it->second.visit_in_progress)
-                it = visited.erase(it);
-            else
-                ++it; } }
+                visited.erase(it);
+        }
+    }
+
 
     /** Determine whether @n is currently being visited and the visitor has not finished
      * That is, `start(@n)` has been invoked, and `finish(@n)` has not,
@@ -320,14 +321,12 @@ const IR::Node *Inspector::apply_visitor(const IR::Node *n, const char *name) {
             n->apply_visitor_revisit(*this);
         } else {
             vp.first->second.done = false;
-            visitCurrentOnce = &vp.first->second.visitOnce;
+            visitCurrentOnce = &(*visited)[n].visitOnce;
             if (n->apply_visitor_preorder(*this)) {
                 n->visit_children(*this);
-                visitCurrentOnce = &vp.first->second.visitOnce;
+                visitCurrentOnce = &(*visited)[n].visitOnce;
                 n->apply_visitor_postorder(*this); }
-            if (vp.first != visited->find(n))
-                BUG("visitor state tracker corrupted");
-            vp.first->second.done = true; } }
+            (*visited)[n].done = true; } }
     if (ctxt)
         ctxt->child_index++;
     else {
@@ -372,7 +371,7 @@ const IR::Node *Transform::apply_visitor(const IR::Node *n, const char *name) {
                     prune_flag = true;
                 } else {
                     extra_clone = true;
-                    visited->start(preorder_result, *visitCurrentOnce);
+                    visited->start(preorder_result, *visited->refVisitOnce(n));
                     local.current.node = copy = preorder_result->clone(); } }
             if (!prune_flag) {
                 copy->visit_children(*this);
@@ -395,11 +394,10 @@ const IR::Node *Transform::apply_visitor(const IR::Node *n, const char *name) {
 }
 
 void Inspector::revisit_visited() {
-    for (auto it = visited->begin(); it != visited->end();) {
+    for (auto it = visited->begin(); it != visited->end(); ++it) {
         if (it->second.done)
-            it = visited->erase(it);
-        else
-            ++it; }
+            visited->erase(it);
+    }
 }
 void Modifier::revisit_visited() {
     visited->revisit_visited();
