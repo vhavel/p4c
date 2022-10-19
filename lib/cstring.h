@@ -25,6 +25,8 @@ limitations under the License.
 #include <string>
 #include <sstream>
 
+#include "hash.h"
+
 /**
  * A cstring is a reference to a zero-terminated, immutable, interned string.
  * The cstring object *itself* is not immutable; you can reassign it as
@@ -70,7 +72,7 @@ limitations under the License.
  * that mixing the two types of strings can trigger a lot of implicit copies.
  */
 class cstring {
-    const char *str = nullptr;
+    char *str = nullptr;
 
  public:
     cstring() = default;
@@ -84,7 +86,9 @@ class cstring {
     // not exists in table, because the underlying string must be copied.
     cstring(const char *string, std::size_t length) {  // NOLINT(runtime/explicit)
         if (string != nullptr) {
-            construct_from_shared(string, length);
+            str = new char[length + 1];
+            strncpy(str, string, length);
+            str[length] = 0;
         }
     }
 
@@ -93,14 +97,20 @@ class cstring {
     // not exists in table, because the underlying string must be copied.
     cstring(const char *string) {  // NOLINT(runtime/explicit)
         if (string != nullptr) {
-            construct_from_shared(string, std::strlen(string));
+            auto length = strlen(string);
+            str = new char[length + 1];
+            std::copy(string, string+length, str);
+            str[length] = 0;
         }
     }
 
     // construct cstring from std::string. Do not use if possible, this is linear
     // time operation if string not exists in table, because the underlying string must be copied.
     cstring(const std::string &string) {  // NOLINT(runtime/explicit)
-        construct_from_shared(string.data(), string.length());
+        auto length = string.size();
+        str = new char[length + 1];
+        std::copy(string.begin(), string.end(), str);
+        str[length] = 0;
     }
 
     // TODO (DanilLutsenko): Make special case for r-value std::string?
@@ -121,29 +131,15 @@ class cstring {
             return{};
         }
 
-        cstring result;
-        result.construct_from_unique(string, length);
-        return result;
+        return cstring(string, length);
     }
 
     // construct cstring wrapper for literal
     template<typename T, std::size_t N,
         typename = typename std::enable_if<std::is_same<T, const char>::value>::type>
     static cstring literal(T (&string)[N]) {  // NOLINT(runtime/explicit)
-        cstring result;
-        result.construct_from_literal(string, N - 1  /* String length without null terminator */);
-        return result;
+        return cstring(string, N-1);
     }
-
- private:
-    // passed string is shared, we not unique owners
-    void construct_from_shared(const char *string, std::size_t length);
-
-    // we are unique owners of passed string
-    void construct_from_unique(const char *string, std::size_t length);
-
-    // string is literal
-    void construct_from_literal(const char *string, std::size_t length);
 
  public:
     /// @return a version of the string where all necessary characters
@@ -181,8 +177,8 @@ class cstring {
     const char *find(const char *s) const { return str ? strstr(str, s) : nullptr; }
 
     // Equality tests with other cstrings. Constant time.
-    bool operator==(cstring a) const { return str == a.str; }
-    bool operator!=(cstring a) const { return str != a.str; }
+    bool operator==(cstring a) const { return str ? a && !strcmp(str, a.str) : !a; }
+    bool operator!=(cstring a) const { return !(*this == a); }
 
     // Other comparisons and tests. Linear time.
     bool operator==(const char *a) const { return str ? a && !strcmp(str, a) : !a; }
@@ -321,8 +317,8 @@ inline std::ostream &operator<<(std::ostream &out, cstring s) {
 namespace std {
 template<> struct hash<cstring> {
     std::size_t operator()(const cstring& c) const {
-        // This implementation is good for cstring, since the strings are internalized
-        return hash<const void *>()(c.c_str());
+        if (!c) return 0;
+        return Util::Hash::murmur(c.c_str(), c.size());
     }
 };
 }  // namespace std

@@ -142,48 +142,12 @@ struct hash<table_entry> {
 }
 
 namespace {
-std::unordered_set<table_entry>& cache() {
-    static std::unordered_set<table_entry> g_cache;
-
-    return g_cache;
-}
-
-const char *save_to_cache(const char *string, std::size_t length, table_entry_flags flags) {
-    if ((flags & table_entry_flags::no_need_copy) == table_entry_flags::no_need_copy) {
-        return cache().emplace(string, length, flags).first->string();
-    }
-
-    // temporary table_entry, used for searching only. no need to copy string
-    auto found = cache().find(table_entry(string, length, table_entry_flags::no_need_copy));
-
-    if (found == cache().end()) {
-        return cache().emplace(string, length, flags).first->string();
-    }
-
-    return found->string();
-}
 
 }  // namespace
 
-void cstring::construct_from_shared(const char *string, std::size_t length) {
-    str = save_to_cache(string, length, table_entry_flags::none);
-}
-
-void cstring::construct_from_unique(const char *string, std::size_t length) {
-    str = save_to_cache(string, length,
-        table_entry_flags::no_need_copy | table_entry_flags::require_destruction);
-}
-
-void cstring::construct_from_literal(const char *string, std::size_t length) {
-    str = save_to_cache(string, length, table_entry_flags::no_need_copy);
-}
-
 size_t cstring::cache_size(size_t &count) {
-    size_t rv = 0;
-    count = cache().size();
-    for (auto &s : cache())
-        rv += sizeof(s) + s.length();
-    return rv;
+    count = 0;
+    return 0;
 }
 
 cstring cstring::newline = cstring("\n");
